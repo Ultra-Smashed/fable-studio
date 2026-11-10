@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Fable Studio</title>
+<style>
+/* ===== FABLE STUDIO SHELL — nicht verändern ===== */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#fff;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+#frame{position:relative;width:100%;height:100%;overflow:hidden;background:#000;container-type:size}
+body.rec #frame{width:auto;height:min(100vh,calc(100vw * 16 / 9));aspect-ratio:9/16}
+#gl{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#gl:active{cursor:grabbing}
+.fs-ui{transition:opacity .5s}
+body.rec .fs-ui{opacity:0;pointer-events:none}
+#hud{position:absolute;left:0;right:0;bottom:0;padding:16px 18px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;pointer-events:none;
+  background:linear-gradient(transparent,rgba(0,0,0,.45))}
+#hudTitle{font-size:13px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;opacity:.9}
+#hudHint{font-size:12px;opacity:.6;margin-top:4px}
+#btns{display:flex;gap:8px;pointer-events:auto}
+#btns button{font:inherit;font-size:12px;font-weight:600;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);
+  border-radius:999px;padding:7px 12px;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#btns button:hover{background:rgba(255,255,255,.2)}
+#start{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;
+  background:radial-gradient(ellipse at center,rgba(0,0,0,.35),rgba(0,0,0,.8));backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:opacity .9s}
+#start.off{opacity:0;pointer-events:none}
+#sTitle{margin:0 0 10px;font-size:clamp(26px,7cqw,54px);font-weight:800;letter-spacing:-.01em;line-height:1.05;text-wrap:balance}
+#sSub{margin:0 auto 26px;max-width:34em;font-size:clamp(14px,2.6cqw,17px);opacity:.75;line-height:1.45;text-wrap:balance}
+#sBtn{font:inherit;font-size:16px;font-weight:700;color:#000;background:#fff;border:0;border-radius:999px;padding:14px 34px;cursor:pointer}
+#sBtn:hover{transform:scale(1.04)}
+#sNote{display:block;margin-top:12px;font-size:12px;opacity:.5}
+#toast{position:absolute;left:50%;top:18px;transform:translateX(-50%);font-size:13px;background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.2);
+  border-radius:999px;padding:8px 16px;opacity:0;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1}
+#err{position:absolute;left:12px;right:12px;top:12px;margin:0;display:none;white-space:pre-wrap;font:12px/1.4 ui-monospace,Menlo,monospace;
+  background:#3a0a12;color:#ffd7dc;border:1px solid #ff5d73;border-radius:10px;padding:12px;z-index:9}
+/* Film */
+#cap{position:absolute;left:0;right:0;bottom:11%;padding:0 7%;text-align:center;font-size:clamp(17px,4.2cqw,30px);font-weight:600;line-height:1.3;
+  text-shadow:0 2px 18px rgba(0,0,0,.9),0 0 3px rgba(0,0,0,.8);opacity:0;transition:opacity .6s;pointer-events:none;text-wrap:balance}
+#cap.on{opacity:1}
+#card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8%;opacity:0;transition:opacity .8s;pointer-events:none}
+#card.on{opacity:1}
+#cardT{font-size:clamp(30px,9cqw,84px);font-weight:800;letter-spacing:-.02em;line-height:1.02;text-wrap:balance;text-shadow:0 4px 40px rgba(0,0,0,.6)}
+#cardS{margin-top:14px;font-size:clamp(14px,3cqw,22px);opacity:.75;letter-spacing:.04em;text-wrap:balance}
+#prog{position:absolute;left:0;bottom:0;height:3px;width:0;background:#fff;opacity:.7}
+#again{position:absolute;left:50%;bottom:16%;transform:translateX(-50%);display:none;font:inherit;font-size:15px;font-weight:700;color:#000;background:#fff;border:0;border-radius:999px;padding:12px 28px;cursor:pointer}
+/* Zeitreise */
+#era{position:absolute;left:0;width:min(100%,max(44%,340px));top:0;padding:calc(20px + 3cqh) 6% 0;pointer-events:none;display:none}
+#eraYear{white-space:nowrap;font-size:clamp(26px,6.2cqw,76px);font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;text-shadow:0 4px 40px rgba(0,0,0,.7)}
+#eraBadge{display:inline-block;margin-top:10px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;border:1px solid currentColor;border-radius:999px;padding:4px 10px;opacity:0;transition:opacity .5s}
+#eraBadge.on{opacity:.9}
+#eraTitle{margin-top:12px;font-size:clamp(18px,4.4cqw,34px);font-weight:700;line-height:1.15;text-wrap:balance;transition:opacity .5s;text-shadow:0 2px 20px rgba(0,0,0,.8)}
+#eraText{margin-top:8px;max-width:min(30em,100%);font-size:clamp(13px,2.7cqw,18px);line-height:1.45;opacity:.8;text-wrap:pretty;transition:opacity .5s;text-shadow:0 2px 14px rgba(0,0,0,.9)}
+#axis{position:absolute;left:6%;right:6%;bottom:64px;height:44px;display:none;cursor:pointer;touch-action:none}
+#axisLine{position:absolute;left:0;right:0;top:10px;height:2px;background:rgba(255,255,255,.25)}
+#axisFill{position:absolute;left:0;top:10px;height:2px;width:0;background:#fff}
+#axisKnob{position:absolute;top:4px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#fff;box-shadow:0 0 18px #fff}
+.axDot{position:absolute;top:7px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#000;border:2px solid rgba(255,255,255,.6)}
+.axLab{position:absolute;top:22px;transform:translateX(-50%);font-size:10px;opacity:.55;white-space:nowrap;font-variant-numeric:tabular-nums}
+@container (max-width:520px){.axLab{display:none}}
+</style>
+</head>
+<body>
+<div id="stage"><div id="frame">
+  <canvas id="gl"></canvas>
+  <div id="card"><div id="cardT"></div><div id="cardS"></div></div>
+  <div id="cap"></div>
+  <div id="era" class="fs-keep"><div id="eraYear"></div><div id="eraBadge">Prognose</div><div id="eraTitle"></div><div id="eraText"></div></div>
+  <div id="axis" class="fs-ui"><div id="axisLine"></div><div id="axisFill"></div><div id="axisKnob"></div></div>
+  <div id="prog" class="fs-ui"></div>
+  <button id="again" class="fs-ui">Nochmal ansehen</button>
+  <div id="hud" class="fs-ui"><div><div id="hudTitle"></div><div id="hudHint"></div></div>
+    <div id="btns"><button id="bSound">Ton an</button><button id="bRec" title="Hochformat für Bildschirmaufnahmen">9:16</button></div></div>
+  <div id="start"><div><h1 id="sTitle"></h1><p id="sSub"></p><button id="sBtn">Starten</button><small id="sNote">mit Ton</small></div></div>
+  <div id="toast"></div>
+  <pre id="err"></pre>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ==========================================================================
+   FABLE STUDIO ENGINE v1  —  diesen Block nicht verändern.
+   Stellt bereit: FS.scene, FS.camera, FS.rig, FS.audio, FS.post, FS.film,
+   FS.reise und Helfer. Die Szene steht im zweiten <script>-Block weiter unten.
+   ========================================================================== */
+const FS = (function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const frame = $('frame'), canvas = $('gl');
+  const FS = { started: false, time: 0, rec: false, width: 1, height: 1, portrait: false };
+
+  /* ---------- Fehler sichtbar machen ---------- */
+  function showErr(msg) {
+    const e = $('err');
+    e.textContent = 'Fehler: ' + msg + '\nKopiere diese Meldung in den Chat, dann wird sie behoben.';
+    e.style.display = 'block';
+  }
+  window.addEventListener('error', (e) => showErr(e.message + (e.lineno ? ' (Zeile ' + e.lineno + ')' : '')));
+  window.addEventListener('unhandledrejection', (e) => showErr(String(e.reason)));
+  if (!window.THREE) { showErr('three.js konnte nicht geladen werden.'); throw new Error('THREE fehlt'); }
+
+  /* ---------- Mathe ---------- */
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+  const ease = { linear: (t) => t, inOut: smooth, out: (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3), in: (t) => Math.pow(clamp(t, 0, 1), 3) };
+  function makeRng(seed) {
+    let s = (seed >>> 0) || 1;
+    const r = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+    r.range = (a, b) => a + (b - a) * r();
+    r.int = (a, b) => Math.floor(r.range(a, b + 1));
+    r.pick = (arr) => arr[Math.floor(r() * arr.length)];
+    r.chance = (p) => r() < p;
+    return r;
+  }
+  Object.assign(FS, { clamp, lerp, smooth, ease, rng: makeRng, rand: makeRng(7) });
+
+  /* ---------- Renderer ---------- */
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
+  const gl = renderer.getContext();
+  const gl2 = renderer.capabilities.isWebGL2;
+  const hdr = gl2
+    ? !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'))
+    : !!(gl.getExtension('OES_texture_half_float') && gl.getExtension('OES_texture_half_float_linear') && gl.getExtension('EXT_color_buffer_half_float'));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 3000);
+  camera.position.set(0, 2, 10);
+  scene.add(camera);
+  Object.assign(FS, { renderer, scene, camera, hdr });
+
+  const rtType = hdr ? THREE.HalfFloatType : THREE.UnsignedByteType;
+  function makeRT(w, h, depth) {
+    const rt = new THREE.WebGLRenderTarget(Math.max(2, w | 0), Math.max(2, h | 0), {
+      type: rtType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
+      depthBuffer: !!depth, stencilBuffer: false
+    });
+    rt.texture.generateMipmaps = false;
+    return rt;
+  }
+
+  /* ---------- Nachbearbeitung: Bloom, Vignette, Korn, Tonemapping ---------- */
+  const post = FS.post = { bloom: 1, threshold: hdr ? 1.0 : 0.72, vignette: 0.35, grain: 0.035, aberration: 0.004, exposure: 1, saturation: 1, fade: 1 };
+  const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), quadScene = new THREE.Scene();
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial());
+  quad.frustumCulled = false; quadScene.add(quad);
+  const VS = 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
+  const mkPass = (frag, uniforms) => new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: frag, uniforms, depthTest: false, depthWrite: false });
+  function runPass(mat, target) { mat.uniformsNeedUpdate = true; quad.material = mat; renderer.setRenderTarget(target); renderer.render(quadScene, quadCam); }
+  const F_BRIGHT = 'uniform sampler2D tex;uniform vec2 px;uniform float threshold;varying vec2 vUv;void main(){' +
+    'vec3 c=texture2D(tex,vUv+px*vec2(-.5,-.5)).rgb+texture2D(tex,vUv+px*vec2(.5,-.5)).rgb+texture2D(tex,vUv+px*vec2(-.5,.5)).rgb+texture2D(tex,vUv+px*vec2(.5,.5)).rgb;c*=.25;' +
+    'c=max(c,vec3(0.));float l=max(c.r,max(c.g,c.b));float k=max(l-threshold,0.)/max(l,1e-4);gl_FragColor=vec4(min(c*k,vec3(6.)),1.);}';
+  const F_DOWN = 'uniform sampler2D tex;uniform vec2 px;varying vec2 vUv;void main(){vec3 c=texture2D(tex,vUv).rgb*4.;' +
+    'c+=texture2D(tex,vUv+px*vec2(-1.,-1.)).rgb+texture2D(tex,vUv+px*vec2(1.,-1.)).rgb+texture2D(tex,vUv+px*vec2(-1.,1.)).rgb+texture2D(tex,vUv+px*vec2(1.,1.)).rgb;gl_FragColor=vec4(c/8.,1.);}';
+  const F_UP = 'uniform sampler2D tex;uniform sampler2D base;uniform vec2 px;varying vec2 vUv;void main(){vec3 c=texture2D(tex,vUv+px*vec2(-2.,0.)).rgb+texture2D(tex,vUv+px*vec2(2.,0.)).rgb+texture2D(tex,vUv+px*vec2(0.,2.)).rgb+texture2D(tex,vUv+px*vec2(0.,-2.)).rgb;' +
+    'c+=2.*(texture2D(tex,vUv+px*vec2(-1.,-1.)).rgb+texture2D(tex,vUv+px*vec2(1.,-1.)).rgb+texture2D(tex,vUv+px*vec2(-1.,1.)).rgb+texture2D(tex,vUv+px*vec2(1.,1.)).rgb);' +
+    'gl_FragColor=vec4(texture2D(base,vUv).rgb+c/12.,1.);}';
+  const F_COMP = 'uniform sampler2D tScene;uniform sampler2D tBloom;uniform float bloom,vignette,grain,aberration,exposure,saturation,fade,time;varying vec2 vUv;' +
+    'vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}' +
+    'float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}' +
+    'void main(){vec2 d=vUv-.5;vec2 o=d*aberration*dot(d,d)*4.;vec3 c;c.r=texture2D(tScene,vUv+o).r;c.g=texture2D(tScene,vUv).g;c.b=texture2D(tScene,vUv-o).b;' +
+    'c=max(c,vec3(0.))+texture2D(tBloom,vUv).rgb*bloom*.22;c*=exposure;c*=1.-vignette*smoothstep(.3,1.,length(d)*1.3);c=aces(c);' +
+    'float l=dot(c,vec3(.2126,.7152,.0722));c=mix(vec3(l),c,saturation);c=pow(c,vec3(1./2.2));' +
+    'c+=(hash(vUv*vec2(1733.,977.)+fract(time)*91.)-.5)*grain;gl_FragColor=vec4(c*fade,1.);}';
+  const LEVELS = 5;
+  const mBright = mkPass(F_BRIGHT, { tex: { value: null }, px: { value: new THREE.Vector2() }, threshold: { value: 1 } });
+  const mDown = [], mUp = [];
+  for (let i = 0; i < LEVELS; i++) {
+    mDown.push(mkPass(F_DOWN, { tex: { value: null }, px: { value: new THREE.Vector2() } }));
+    mUp.push(mkPass(F_UP, { tex: { value: null }, base: { value: null }, px: { value: new THREE.Vector2() } }));
+  }
+  const mComp = mkPass(F_COMP, { tScene: { value: null }, tBloom: { value: null }, bloom: { value: 1 }, vignette: { value: 0 }, grain: { value: 0 },
+    aberration: { value: 0 }, exposure: { value: 1 }, saturation: { value: 1 }, fade: { value: 1 }, time: { value: 0 } });
+
+  let W = 2, H = 2, pr = Math.min(window.devicePixelRatio || 1, 2), rtScene = null, rtDown = [], rtUp = [];
+  let baseFov = 60;
+  const resizeCbs = [];
+  function resize() {
+    const r = frame.getBoundingClientRect();
+    W = Math.max(2, Math.round(r.width)); H = Math.max(2, Math.round(r.height));
+    renderer.setPixelRatio(pr); renderer.setSize(W, H, false);
+    FS.width = W; FS.height = H; FS.portrait = H > W * 1.1;
+    camera.aspect = W / H; camera.fov = FS.portrait ? Math.min(baseFov * 1.3, 95) : baseFov; camera.updateProjectionMatrix();
+    const w = Math.round(W * pr), h = Math.round(H * pr);
+    [rtScene].concat(rtDown, rtUp).forEach((t) => t && t.dispose());
+    rtScene = makeRT(w, h, true); rtDown = []; rtUp = [];
+    let cw = w, ch = h;
+    for (let i = 0; i < LEVELS; i++) { cw = Math.max(2, cw >> 1); ch = Math.max(2, ch >> 1); rtDown.push(makeRT(cw, ch)); rtUp.push(makeRT(cw, ch)); }
+    resizeCbs.forEach((f) => f(W, H));
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(frame); else window.addEventListener('resize', resize);
+
+  function render() {
+    renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
+    mBright.uniforms.tex.value = rtScene.texture; mBright.uniforms.px.value.set(1 / rtScene.width, 1 / rtScene.height); mBright.uniforms.threshold.value = post.threshold;
+    runPass(mBright, rtDown[0]);
+    for (let i = 1; i < LEVELS; i++) {
+      mDown[i].uniforms.tex.value = rtDown[i - 1].texture; mDown[i].uniforms.px.value.set(1 / rtDown[i - 1].width, 1 / rtDown[i - 1].height);
+      runPass(mDown[i], rtDown[i]);
+    }
+    let src = rtDown[LEVELS - 1];
+    for (let i = LEVELS - 2; i >= 0; i--) {
+      mUp[i].uniforms.tex.value = src.texture; mUp[i].uniforms.base.value = rtDown[i].texture; mUp[i].uniforms.px.value.set(1 / src.width, 1 / src.height);
+      runPass(mUp[i], rtUp[i]); src = rtUp[i];
+    }
+    const u = mComp.uniforms;
+    u.tScene.value = rtScene.texture; u.tBloom.value = src.texture; u.bloom.value = post.bloom; u.vignette.value = post.vignette; u.grain.value = post.grain;
+    u.aberration.value = post.aberration; u.exposure.value = post.exposure; u.saturation.value = post.saturation; u.fade.value = post.fade; u.time.value = FS.time;
+    runPass(mComp, null);
+  }
+
+  /* ---------- Rückrufe ---------- */
+  const updaters = [], startCbs = [], tapCbs = [], keyCbs = [];
+  FS.onUpdate = (f) => { updaters.push(f); return f; };
+  FS.onStart = (f) => { startCbs.push(f); };
+  FS.onTap = (f) => { tapCbs.push(f); };
+  FS.onKey = (f) => { keyCbs.push(f); };
+  FS.onResize = (f) => { resizeCbs.push(f); };
+  FS.add = (o) => { scene.add(o); return o; };
+
+  /* ---------- Kamera-Rig ---------- */
+  const rig = FS.rig = { mode: 'none', yaw: 0, pitch: 0, tyaw: 0, tpitch: 0, speed: 1, tspeed: 1, dist: 0, baseSpeed: 6, sway: 0.004, idle: 99,
+    maxYaw: 1.25, maxPitch: 0.6, fn: null, target: new THREE.Vector3(), radius: 10, r: 10, zoom: 1, oyaw: 0, opitch: 0.25, auto: 0.08, paused: false };
+  const v3 = (p) => (p && p.isVector3) ? p : new THREE.Vector3(p[0], p[1], p[2]);
+  FS.v3 = v3;
+  /* Fahrt: fn(strecke, zeit) liefert [position, blickpunkt] */
+  rig.cruise = (fn, o = {}) => { rig.mode = 'cruise'; rig.fn = fn; rig.baseSpeed = o.speed != null ? o.speed : 6; rig.sway = o.sway != null ? o.sway : 0.004; };
+  /* Fahrt entlang einer Punkteliste (geschlossene Schleife, außer closed:false) */
+  rig.path = (pts, o = {}) => {
+    const closed = o.closed !== false, curve = new THREE.CatmullRomCurve3(pts.map(v3), closed), len = curve.getLength(), ahead = o.lookAhead != null ? o.lookAhead : 8;
+    const wrap = (u) => closed ? ((u % 1) + 1) % 1 : clamp(u, 0, 1);
+    rig.curve = curve;
+    rig.cruise((d) => [curve.getPointAt(wrap(d / len)), curve.getPointAt(wrap((d + ahead) / len))], o);
+  };
+  /* Kreisen um ein Ziel */
+  rig.orbit = (target, radius, o = {}) => {
+    rig.mode = 'orbit'; rig.target.copy(v3(target)); rig.radius = rig.r = radius; rig.zoom = 1;
+    rig.opitch = o.pitch != null ? o.pitch : 0.25; rig.oyaw = o.yaw || 0; rig.auto = o.autoRotate != null ? o.autoRotate : 0.08;
+  };
+  rig.manual = () => { rig.mode = 'manual'; };
+  function updateRig(dt, t) {
+    rig.idle += dt;
+    const k = (r) => 1 - Math.exp(-dt * r);
+    if (rig.mode === 'cruise' && rig.fn) {
+      if (FS.rec) { rig.tyaw = 0; rig.tpitch = 0; rig.tspeed = 1; }
+      else if (rig.idle > 3.5) { rig.tyaw *= Math.exp(-dt * 0.9); rig.tpitch *= Math.exp(-dt * 0.9); }
+      rig.yaw = lerp(rig.yaw, rig.tyaw, k(6)); rig.pitch = lerp(rig.pitch, rig.tpitch, k(6));
+      rig.speed = lerp(rig.speed, rig.paused ? 0 : rig.tspeed, k(3));
+      rig.dist += rig.baseSpeed * rig.speed * dt;
+      const r = rig.fn(rig.dist, t);
+      camera.position.copy(r[0]); camera.lookAt(r[1]);
+      camera.rotateY(rig.yaw + Math.sin(t * 0.31) * rig.sway * 2);
+      camera.rotateX(rig.pitch + Math.sin(t * 0.43 + 1) * rig.sway);
+    } else if (rig.mode === 'orbit') {
+      if (rig.idle > 2.5 || FS.rec) rig.oyaw += rig.auto * dt;
+      rig.r = lerp(rig.r, rig.radius * rig.zoom, k(5));
+      const cp = Math.cos(rig.opitch);
+      camera.position.set(rig.target.x + Math.sin(rig.oyaw) * cp * rig.r, rig.target.y + Math.sin(rig.opitch) * rig.r, rig.target.z + Math.cos(rig.oyaw) * cp * rig.r);
+      camera.lookAt(rig.target);
+    }
+  }
+
+  /* ---------- Eingabe ---------- */
+  const pts = new Map(); let moved = 0, multi = false, pinch = 0, lastTap = 0;
+  function zoomBy(d) {
+    rig.idle = 0;
+    if (rig.mode === 'cruise') rig.tspeed = clamp(rig.tspeed + d * 1.5, -1, 4);
+    else if (rig.mode === 'orbit') rig.zoom = clamp(rig.zoom * (1 - d), 0.35, 2.5);
+  }
+  canvas.addEventListener('pointerdown', (e) => {
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (pts.size === 1) { moved = 0; multi = false; } else { multi = true; pinch = 0; }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = pts.get(e.pointerId); if (!p) return;
+    const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
+    if (FS.rec) return;
+    if (pts.size === 1) {
+      moved += Math.abs(dx) + Math.abs(dy); rig.idle = 0;
+      if (rig.mode === 'cruise') { rig.tyaw = clamp(rig.tyaw + dx * 0.004, -rig.maxYaw, rig.maxYaw); rig.tpitch = clamp(rig.tpitch + dy * 0.003, -rig.maxPitch, rig.maxPitch); }
+      else if (rig.mode === 'orbit') { rig.oyaw -= dx * 0.006; rig.opitch = clamp(rig.opitch + dy * 0.004, -0.15, 1.35); }
+    } else if (pts.size === 2) {
+      const a = Array.from(pts.values()), dd = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]);
+      if (pinch) zoomBy((dd - pinch) * 0.004); pinch = dd;
+    }
+  });
+  function pointerEnd(e) {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (e.type === 'pointerup' && !multi && moved < 8) {
+      const now = performance.now();
+      if (FS.rec) { if (now - lastTap < 400) setRec(false); lastTap = now; return; }
+      lastTap = now;
+      const r = canvas.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * 2 - 1, y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      tapCbs.forEach((f) => f(x, y, e));
+    }
+  }
+  canvas.addEventListener('pointerup', pointerEnd); canvas.addEventListener('pointercancel', pointerEnd);
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); if (!FS.rec) zoomBy(-e.deltaY * 0.0012); }, { passive: false });
+  window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'm') audio.toggle();
+    else if (key === 'r') setRec(!FS.rec);
+    else if (key === 'escape' && FS.rec) setRec(false);
+    else if (key === ' ' && rig.mode === 'cruise') { rig.paused = !rig.paused; e.preventDefault(); }
+    else if (key === 'arrowup') zoomBy(0.15);
+    else if (key === 'arrowdown') zoomBy(-0.15);
+    keyCbs.forEach((f) => f(key, e));
+  });
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  /* Trefferprüfung für Antippen: liefert das erste getroffene Objekt oder null */
+  FS.hit = (x, y, objects) => { ndc.set(x, y); ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(objects, true); return h.length ? h[0] : null; };
+
+  /* ---------- Oberfläche ---------- */
+  let toastT = 0;
+  FS.toast = (msg, sec = 2.5) => { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), sec * 1000); };
+  function setRec(on) {
+    FS.rec = on; document.body.classList.toggle('rec', on); resize();
+    if (on) {   // Aufnahme beginnt sauber von vorn
+      FS.toast('Aufnahme-Modus · Doppeltipp oder R beendet', 1.6);
+      if (FS.started && film.shots.length) film.play();
+      if (reise.eps.length) { reise.target = 0; reise.pos = 0; reise.clock = 0; }
+    }
+  }
+  FS.setRec = setRec;
+  $('bRec').addEventListener('click', () => setRec(true));
+  $('bSound').addEventListener('click', () => audio.toggle());
+  /* Grundeinstellungen der Szene */
+  FS.setup = (o = {}) => {
+    if (o.title) { $('sTitle').textContent = o.title; $('hudTitle').textContent = o.title; document.title = o.title; }
+    if (o.subtitle != null) $('sSub').textContent = o.subtitle;
+    if (o.hint != null) $('hudHint').textContent = o.hint;
+    if (o.button) $('sBtn').textContent = o.button;
+    if (o.seed != null) FS.rand = makeRng(o.seed);
+    if (o.fov) { baseFov = o.fov; }
+    if (o.background != null) { scene.background = FS.col(o.background); }
+    if (o.fog) scene.fog = new THREE.FogExp2(FS.col(o.fog[0]), o.fog[1]);
+    if (o.post) Object.assign(post, o.post);
+    resize();
+  };
+  function start() {
+    if (FS.started) return;
+    FS.started = true; audio.init(); $('start').classList.add('off');
+    startCbs.forEach((f) => f());
+  }
+  FS.start = start;
+  $('sBtn').addEventListener('click', start);
+
+  /* ---------- Ton ---------- */
+  const audio = FS.audio = {
+    ctx: null, master: null, rev: null, muted: false, level: 0.9, loops: [],
+    mtof: (m) => 440 * Math.pow(2, (m - 69) / 12),
+    init() {
+      if (audio.ctx) { audio.ctx.resume(); return; }
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      let ctx; try { ctx = new C(); } catch (_) { return; }
+      audio.ctx = ctx;
+      const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.01; comp.release.value = 0.3;
+      const m = audio.master = ctx.createGain(); m.gain.value = 0.0001; m.gain.linearRampToValueAtTime(audio.level, ctx.currentTime + 2.5);
+      m.connect(comp); comp.connect(ctx.destination);
+      const len = Math.floor(ctx.sampleRate * 3.4), buf = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.8); }
+      const cv = audio.rev = ctx.createConvolver(); cv.buffer = buf; const rg = ctx.createGain(); rg.gain.value = 0.6; cv.connect(rg); rg.connect(m);
+      audio._noise = {};
+      if (ctx.state === 'suspended') ctx.resume();
+    },
+    toggle() {
+      audio.muted = !audio.muted; $('bSound').textContent = audio.muted ? 'Ton aus' : 'Ton an';
+      if (audio.ctx) audio.master.gain.setTargetAtTime(audio.muted ? 0.0001 : audio.level, audio.ctx.currentTime, 0.08);
+    },
+    _send(node, rev) { node.connect(audio.master); if (rev > 0) { const s = audio.ctx.createGain(); s.gain.value = rev; node.connect(s); s.connect(audio.rev); } },
+    _buf(color) {
+      const ctx = audio.ctx; if (audio._noise[color]) return audio._noise[color];
+      const len = ctx.sampleRate * 4, b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0, last = 0;
+      for (let i = 0; i < len; i++) {
+        const w = Math.random() * 2 - 1;
+        if (color === 'pink') { b0 = 0.99765 * b0 + w * 0.099046; b1 = 0.963 * b1 + w * 0.2965164; b2 = 0.57 * b2 + w * 1.0526913; d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.2; }
+        else if (color === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+        else d[i] = w;
+      }
+      return (audio._noise[color] = b);
+    },
+    /* Dauerrauschen (Regen, Wind, Meer, Stadt). Rückgabe: {gain, filter} zum Nachregeln */
+    noise(o = {}) {
+      const ctx = audio.ctx; if (!ctx) return null;
+      const s = ctx.createBufferSource(); s.buffer = audio._buf(o.color || 'pink'); s.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = o.type || 'lowpass'; f.frequency.value = o.freq || 1200; f.Q.value = o.q != null ? o.q : 0.7;
+      const g = ctx.createGain(); g.gain.value = 0.0001; g.gain.linearRampToValueAtTime(o.gain != null ? o.gain : 0.15, ctx.currentTime + (o.fadeIn != null ? o.fadeIn : 3));
+      s.connect(f); f.connect(g); audio._send(g, o.reverb || 0); s.start();
+      return { gain: g.gain, filter: f, source: s };
+    },
+    /* Einzelner Ton. midi = Tonhöhe (60 = c'), time = Startzeit im Audio-Takt */
+    tone(midi, o = {}) {
+      const ctx = audio.ctx; if (!ctx) return;
+      const t = Math.max(o.time != null ? o.time : ctx.currentTime, ctx.currentTime), dur = o.dur != null ? o.dur : 0.3, a = o.attack != null ? o.attack : 0.006, r = o.release != null ? o.release : 0.18, G = o.gain != null ? o.gain : 0.15;
+      const osc = ctx.createOscillator(); osc.type = o.wave || 'sawtooth'; osc.frequency.setValueAtTime(audio.mtof(midi), t);
+      if (o.slide) osc.frequency.exponentialRampToValueAtTime(audio.mtof(midi + o.slide), t + dur);
+      if (o.detune) osc.detune.value = o.detune;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = o.q != null ? o.q : 1; f.frequency.setValueAtTime(o.cutoff || 2400, t);
+      if (o.sweep) f.frequency.exponentialRampToValueAtTime(Math.max(50, o.sweep), t + dur + r);
+      const g = ctx.createGain(), hold = Math.max(a, dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(G, t + a); g.gain.setValueAtTime(G, t + hold); g.gain.exponentialRampToValueAtTime(0.0001, t + hold + r);
+      osc.connect(f); f.connect(g); audio._send(g, o.reverb || 0); osc.start(t); osc.stop(t + hold + r + 0.05);
+    },
+    /* Akkord aus mehreren Tönen */
+    chord(notes, o = {}) { notes.forEach((n, i) => audio.tone(n, Object.assign({}, o, { detune: (i % 2 ? 6 : -6) }))); },
+    kick(time, gain = 0.5) {
+      const ctx = audio.ctx; if (!ctx) return; const t = Math.max(time || 0, ctx.currentTime);
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+      g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.32); o.connect(g); g.connect(audio.master); o.start(t); o.stop(t + 0.35);
+    },
+    _hit(time, gain, type, freq, dur, rev) {
+      const ctx = audio.ctx; if (!ctx) return; const t = Math.max(time || 0, ctx.currentTime);
+      const s = ctx.createBufferSource(); s.buffer = audio._buf('white'); const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = 0.8;
+      const g = ctx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); audio._send(g, rev || 0); s.start(t, Math.random() * 3); s.stop(t + dur + 0.05);
+    },
+    hat(time, gain = 0.12) { audio._hit(time, gain, 'highpass', 7500, 0.05, 0); },
+    snare(time, gain = 0.25) { audio._hit(time, gain, 'bandpass', 1900, 0.18, 0.25); },
+    /* Rauschstoß mit Filterfahrt: Wusch, Donner, Welle, Aufprall */
+    whoosh(o = {}) {
+      const ctx = audio.ctx; if (!ctx) return; const t = Math.max(o.time || 0, ctx.currentTime), dur = o.dur || 1.2;
+      const s = ctx.createBufferSource(); s.buffer = audio._buf(o.color || 'pink'); const f = ctx.createBiquadFilter(); f.type = o.type || 'bandpass'; f.Q.value = o.q != null ? o.q : 1.2;
+      f.frequency.setValueAtTime(o.from || 300, t); f.frequency.exponentialRampToValueAtTime(o.to || 3000, t + dur);
+      const g = ctx.createGain(), G = o.gain != null ? o.gain : 0.3, a = o.attack != null ? o.attack : dur * 0.4;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(G, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); audio._send(g, o.reverb || 0); s.start(t, Math.random() * 2); s.stop(t + dur + 0.05);
+    },
+    /* Liegende Fläche aus verstimmten Tönen. Rückgabe: {gain, filter, to(noten, sekunden)} */
+    pad(notes, o = {}) {
+      const ctx = audio.ctx; if (!ctx) return null;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.cutoff || 900; f.Q.value = 0.6;
+      const g = ctx.createGain(); g.gain.value = 0.0001; g.gain.linearRampToValueAtTime(o.gain != null ? o.gain : 0.08, ctx.currentTime + (o.fadeIn != null ? o.fadeIn : 4));
+      const det = o.detune != null ? o.detune : 9, oscs = [];
+      notes.forEach((n) => [-det, det].forEach((d) => { const os = ctx.createOscillator(); os.type = o.wave || 'sawtooth'; os.frequency.value = audio.mtof(n); os.detune.value = d; os.connect(f); os.start(); oscs.push(os); }));
+      const lfo = ctx.createOscillator(), lg = ctx.createGain(); lfo.frequency.value = o.lfo != null ? o.lfo : 0.09; lg.gain.value = (o.cutoff || 900) * 0.35; lfo.connect(lg); lg.connect(f.frequency); lfo.start();
+      f.connect(g); audio._send(g, o.reverb != null ? o.reverb : 0.5);
+      return { gain: g.gain, filter: f, to(ns, sec = 2) { ns.forEach((n, i) => [0, 1].forEach((j) => { const os = oscs[i * 2 + j]; if (os) os.frequency.setTargetAtTime(audio.mtof(n), ctx.currentTime, sec / 3); })); } };
+    },
+    /* Taktgeber: ruft fn(schritt, zeit, schrittDauer) im Raster. div = Schritte pro Schlag */
+    loop(o) {
+      const ctx = audio.ctx; if (!ctx) return { stop() {} };
+      const stepDur = 60 / (o.bpm || 90) / (o.div || 4); let next = ctx.currentTime + 0.12, i = 0;
+      const id = setInterval(() => {
+        if (next < ctx.currentTime - 0.3) next = ctx.currentTime + 0.05;
+        while (next < ctx.currentTime + 0.22) { try { o.fn(i, next, stepDur); } catch (e) { clearInterval(id); showErr('Ton: ' + e.message); } i++; next += stepDur; }
+      }, 40);
+      const h = { stop() { clearInterval(id); } }; audio.loops.push(h); return h;
+    },
+    stopLoops() { audio.loops.forEach((l) => l.stop()); audio.loops = []; }
+  };
+
+  /* ---------- Helfer für Szenen ---------- */
+  /* Farbe richtig umrechnen. k > 1 lässt die Fläche leuchten (Bloom ab etwa 1.5) */
+  FS.col = (hex, k = 1) => { const c = new THREE.Color(hex).convertSRGBToLinear(); return k === 1 ? c : c.multiplyScalar(k); };
+  FS.canvasTex = (w, h, draw) => {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; draw(cv.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t;
+  };
+  /* Schrift als Textur (Schilder, Tafeln). vertical:true stapelt die Zeichen */
+  FS.textTex = (text, o = {}) => {
+    const chars = o.vertical ? Array.from(text) : [text], size = o.size || 120, pad = o.pad != null ? o.pad : size * 0.3;
+    const font = (o.weight || 800) + ' ' + size + 'px ' + (o.font || 'system-ui,-apple-system,"Hiragino Sans","Noto Sans CJK JP","Yu Gothic",sans-serif');
+    const m = document.createElement('canvas').getContext('2d'); m.font = font;
+    const tw = Math.max.apply(null, chars.map((c) => m.measureText(c).width));
+    const w = Math.ceil(tw + pad * 2), h = Math.ceil(chars.length * size * 1.12 + pad * 2);
+    const tex = FS.canvasTex(w, h, (g) => {
+      if (o.bg) { g.fillStyle = o.bg; g.fillRect(0, 0, w, h); }
+      if (o.border) { g.strokeStyle = o.border; g.lineWidth = size * 0.07; g.strokeRect(pad * 0.35, pad * 0.35, w - pad * 0.7, h - pad * 0.7); }
+      g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = o.color || '#fff';
+      chars.forEach((c, i) => g.fillText(c, w / 2, pad + size * 1.12 * (i + 0.5)));
+    });
+    tex.userData = { aspect: w / h }; return tex;
+  };
+  let _glow = null;
+  FS.glowTex = () => _glow || (_glow = FS.canvasTex(128, 128, (g) => {
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.45)'); gr.addColorStop(0.6, 'rgba(255,255,255,.1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  }));
+  /* Weiche Lichtpunkte (Laternenschein, Sterne, Funken, Glühwürmchen).
+     list: [{pos:[x,y,z], color:'#hex', size:meter, k:helligkeit}]. Rückgabe: THREE.Points, Attribute position/color/size änderbar */
+  FS.glows = (list, o = {}) => {
+    const n = list.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), siz = new Float32Array(n);
+    list.forEach((p, i) => { const v = v3(p.pos), c = FS.col(p.color || '#ffffff', p.k != null ? p.k : 1); pos.set([v.x, v.y, v.z], i * 3); col.set([c.r, c.g, c.b], i * 3); siz[i] = p.size || 1; });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('size', new THREE.BufferAttribute(siz, 1));
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: FS.glowTex() }, scale: { value: 1 }, fogD: { value: 0 }, opacity: { value: o.opacity != null ? o.opacity : 1 } },
+      vertexShader: 'attribute float size;attribute vec3 color;varying vec3 vC;varying float vF;uniform float scale,fogD;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;float d=-mv.z;gl_PointSize=min(size*scale/max(d,.1),512.);vC=color;vF=exp(-fogD*fogD*d*d);}',
+      fragmentShader: 'uniform sampler2D map;uniform float opacity;varying vec3 vC;varying float vF;void main(){float a=texture2D(map,gl_PointCoord).a;gl_FragColor=vec4(vC*a*vF*opacity,1.);}',
+      blending: THREE.AdditiveBlending, depthWrite: false, transparent: true
+    });
+    const p = new THREE.Points(geo, mat); p.frustumCulled = false;
+    p.onBeforeRender = function () { mat.uniforms.scale.value = this.matrixWorld.getMaxScaleOnAxis() * renderer.getDrawingBufferSize(ndc).y / (2 * Math.tan(camera.fov * Math.PI / 360)); mat.uniformsNeedUpdate = true; mat.uniforms.fogD.value = (scene.fog && scene.fog.density) ? scene.fog.density * (o.fog != null ? o.fog : 0.6) : 0; };
+    return p;
+  };
+  /* Viele gleiche Körper in einem Zeichenaufruf. fn(i, platzhalter, farbe) setzt Lage und Farbe */
+  FS.inst = (geo, mat, n, fn) => {
+    const m = new THREE.InstancedMesh(geo, mat, n), d = new THREE.Object3D(), c = new THREE.Color();
+    for (let i = 0; i < n; i++) { d.position.set(0, 0, 0); d.rotation.set(0, 0, 0); d.scale.set(1, 1, 1); c.setRGB(1, 1, 1); fn(i, d, c); d.updateMatrix(); m.setMatrixAt(i, d.matrix); m.setColorAt(i, c); }
+    m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.frustumCulled = false; return m;
+  };
+  /* Spiegelbild einer Gruppe unter der Höhe y (für nasse Böden, Wasser, Glas) */
+  FS.mirror = (obj, y = 0) => { const m = obj.clone(true); m.scale.y *= -1; m.position.y = 2 * y - obj.position.y; return m; };
+  /* Himmel als Verlauf: oben, Horizont, unten */
+  FS.sky = (top, horizon, bottom, o = {}) => {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { a: { value: FS.col(top, o.k || 1) }, b: { value: FS.col(horizon, o.k || 1) }, c: { value: FS.col(bottom || horizon, o.k || 1) }, p: { value: o.power || 0.6 } },
+      vertexShader: 'varying vec3 vD;void main(){vD=normalize(position);vec4 q=projectionMatrix*vec4(mat3(modelViewMatrix)*position,1.);gl_Position=q.xyww;}',
+      fragmentShader: 'uniform vec3 a,b,c;uniform float p;varying vec3 vD;void main(){float y=normalize(vD).y;vec3 col=y>0.?mix(b,a,pow(y,p)):mix(b,c,pow(-y,.5));gl_FragColor=vec4(col,1.);}',
+      side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false
+    });
+    const m = new THREE.Mesh(new THREE.SphereGeometry(10, 24, 16), mat); m.frustumCulled = false; m.renderOrder = -1000; scene.add(m); return m;
+  };
+
+  /* ---------- Film: Einstellungen nacheinander abspielen ---------- */
+  const film = FS.film = { shots: [], i: -1, t: 0, total: 0, playing: false, done: false, onEnd: null,
+    /* shot({dur, group, cam:{from:{pos,look,fov}, to:{...}, ease}, caption, card:{title,sub}, fade, enter, update(p,sek,dt), exit}) */
+    shot(o) { o.dur = o.dur || 5; o.start = film.total; film.total += o.dur; if (o.group) { o.group.visible = false; if (!o.group.parent) scene.add(o.group); } film.shots.push(o); return o; },
+    card(title, sub, o = {}) { return film.shot(Object.assign({ dur: 3.5, card: { title, sub } }, o)); },
+    play() { film.t = 0; film.i = -1; film.playing = true; film.done = false; $('again').style.display = 'none'; },
+    seek(sec) { film.t = clamp(sec, 0, film.total - 0.01); }
+  };
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+  function showShot(i) {
+    const prev = film.shots[film.i], cur = film.shots[i];
+    if (prev && prev.exit) prev.exit();
+    film.shots.forEach((s) => { if (s.group && s.group !== cur.group) s.group.visible = false; });
+    if (cur.group) cur.group.visible = true;
+    film.i = i;
+    $('card').classList.toggle('on', !!cur.card);
+    if (cur.card) { $('cardT').textContent = cur.card.title || ''; $('cardS').textContent = cur.card.sub || ''; }
+    if (cur.enter) cur.enter();
+  }
+  function updateFilm(dt) {
+    if (!film.shots.length) return;
+    if (film.playing) film.t += dt;
+    if (film.t >= film.total) {
+      if (film.playing) { film.playing = false; film.done = true; film.t = film.total - 0.001; if (!FS.rec) $('again').style.display = 'block'; if (film.onEnd) film.onEnd(); }
+    }
+    let i = 0; while (i < film.shots.length - 1 && film.t >= film.shots[i].start + film.shots[i].dur) i++;
+    if (i !== film.i) showShot(i);
+    const s = film.shots[i], local = film.t - s.start, p = clamp(local / s.dur, 0, 1);
+    if (s.cam) {
+      const e = ease[s.cam.ease || 'inOut'](p), f = s.cam.from, to = s.cam.to || f;
+      camera.position.copy(_a.copy(v3(f.pos)).lerp(v3(to.pos), e));
+      camera.lookAt(_b.copy(v3(f.look || [0, 0, 0])).lerp(v3(to.look || f.look || [0, 0, 0]), e));
+      const fov = lerp(f.fov || baseFov, to.fov || f.fov || baseFov, e) * (FS.portrait ? 1.3 : 1);
+      if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = Math.min(fov, 100); camera.updateProjectionMatrix(); }
+    }
+    let capText = '';
+    if (typeof s.caption === 'string') capText = (p > 0.08 && p < 0.94) ? s.caption : '';
+    else if (Array.isArray(s.caption)) s.caption.forEach((c) => { if (p >= c[0] && p < (c[2] != null ? c[2] : 1)) capText = c[1]; });
+    const cap = $('cap'); if (capText) { if (cap.textContent !== capText) cap.textContent = capText; cap.classList.add('on'); } else cap.classList.remove('on');
+    const fd = s.fade != null ? s.fade : 0.6;
+    post.fade = (film.done || !FS.started) ? 1 : (fd > 0 ? Math.min(smooth(local / fd), smooth((s.dur - local) / fd)) : 1);
+    if (s.update) s.update(p, local, dt);
+    $('prog').style.width = (film.t / film.total * 100) + '%';
+  }
+  $('again').addEventListener('click', () => { film.play(); });
+
+  /* ---------- Zeitreise: Stationen entlang einer Zeitachse ---------- */
+  const reise = FS.reise = { eps: [], pos: 0, target: 0, spacing: 70, dwell: 6.5, travel: 3.2, auto: true, clock: 0, idle: 99, now: new Date().getFullYear(),
+    camOffset: [0, 3.2, 15], camLook: [0, 2.2, 0], loop: true, shift: -4.2, portraitLift: 3,
+    /* epoch({year, display, label, title, text, tint, prognose, build(gruppe), update(dt,t,naehe), enter(), cam:{offset,look}}) */
+    epoch(o) {
+      o.index = reise.eps.length; o.group = new THREE.Group(); o.group.position.z = -o.index * reise.spacing; scene.add(o.group);
+      if (o.build) o.build(o.group, o);
+      reise.eps.push(o); buildAxis(); return o;
+    },
+    go(i) { reise.target = clamp(Math.round(i), 0, reise.eps.length - 1); reise.clock = 0; reise.idle = 0; },
+    fmt(y) {
+      const ago = reise.now - y, n = (v) => v.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+      if (ago >= 1e9) return 'vor ' + n(ago / 1e9) + ' Mrd. Jahren';
+      if (ago >= 1e6) return 'vor ' + n(ago / 1e6) + ' Mio. Jahren';
+      if (ago >= 10000) { const m = Math.pow(10, Math.floor(Math.log10(ago)) - 1); return 'vor ' + (Math.round(ago / m) * m).toLocaleString('de-DE') + ' Jahren'; }
+      if (y < 0) return Math.round(-y) + ' v. Chr.';
+      return String(Math.round(y));
+    }
+  };
+  function buildAxis() {
+    const ax = $('axis'); ax.style.display = 'block'; $('era').style.display = 'block';
+    ax.querySelectorAll('.axDot,.axLab').forEach((n) => n.remove());
+    const n = reise.eps.length;
+    reise.eps.forEach((e, i) => {
+      const x = n > 1 ? (i / (n - 1)) * 100 : 0;
+      const d = document.createElement('div'); d.className = 'axDot'; d.style.left = x + '%'; ax.appendChild(d);
+      const l = document.createElement('div'); l.className = 'axLab'; l.style.left = x + '%'; l.textContent = e.label || reise.fmt(e.year); ax.appendChild(l);
+    });
+  }
+  (function axisInput() {
+    const ax = $('axis'); let drag = false;
+    const set = (e) => { const r = ax.getBoundingClientRect(); reise.go(clamp((e.clientX - r.left) / r.width, 0, 1) * (reise.eps.length - 1)); };
+    ax.addEventListener('pointerdown', (e) => { drag = true; try { ax.setPointerCapture(e.pointerId); } catch (_) {} set(e); });
+    ax.addEventListener('pointermove', (e) => { if (drag) set(e); });
+    ax.addEventListener('pointerup', () => { drag = false; }); ax.addEventListener('pointercancel', () => { drag = false; });
+    window.addEventListener('keydown', (e) => { if (!reise.eps.length) return; if (e.key === 'ArrowRight') reise.go(reise.target + 1); if (e.key === 'ArrowLeft') reise.go(reise.target - 1); });
+  })();
+  let eraShown = -1; const _c0 = new THREE.Color();
+  function interpYear(a, b, f) {
+    const A = reise.now - a, B = reise.now - b;
+    if (A > 2000 && B > 2000) return reise.now - Math.exp(lerp(Math.log(A), Math.log(B), f));
+    if (A > 2000) { const mid = reise.now - 2000, g = Math.pow(f, 0.5); return g < 0.7 ? reise.now - Math.exp(lerp(Math.log(A), Math.log(2000), g / 0.7)) : lerp(mid, b, (g - 0.7) / 0.3); }
+    return lerp(a, b, f);
+  }
+  function updateReise(dt, t) {
+    const E = reise.eps, n = E.length; if (!n) return;
+    reise.idle += dt;
+    if (FS.started && (reise.auto || FS.rec) && (reise.idle > 9 || FS.rec)) {
+      reise.clock += dt;
+      if (reise.clock > reise.dwell) { reise.clock = 0; if (reise.target < n - 1) reise.target++; else if (reise.loop && !FS.rec) reise.target = 0; }
+    }
+    const diff = reise.target - reise.pos, step = dt / reise.travel * Math.max(1, Math.abs(diff));
+    reise.pos = Math.abs(diff) <= step ? reise.target : reise.pos + Math.sign(diff) * step;
+    const i0 = clamp(Math.floor(reise.pos), 0, n - 1), i1 = Math.min(i0 + 1, n - 1), f = smooth(reise.pos - i0);
+    const posE = i0 + f, z = -posE * reise.spacing;
+    const o0 = (E[i0].cam && E[i0].cam.offset) || reise.camOffset, o1 = (E[i1].cam && E[i1].cam.offset) || reise.camOffset;
+    const l0 = (E[i0].cam && E[i0].cam.look) || reise.camLook, l1 = (E[i1].cam && E[i1].cam.look) || reise.camLook;
+    const wide = FS.portrait ? 1.35 : 1, sway = Math.sin(t * 0.25) * 0.6;
+    const sx = FS.portrait ? 0 : reise.shift, up = FS.portrait ? reise.portraitLift : 0;   // Platz für den Text: quer rückt die Szene nach rechts, hochkant nach unten
+    camera.position.set(lerp(o0[0], o1[0], f) + sway + sx, lerp(o0[1], o1[1], f) + Math.sin(t * 0.37) * 0.15, z + lerp(o0[2], o1[2], f) * wide);
+    camera.lookAt(lerp(l0[0], l1[0], f) + sx, lerp(l0[1], l1[1], f) + up, z + lerp(l0[2], l1[2], f));
+    E.forEach((e, i) => { const near = clamp(1 - Math.abs(i - posE), 0, 1); e.group.visible = Math.abs(i - posE) < 0.999; if (e.group.visible && e.update) e.update(dt, t, near); });
+    const cur = Math.round(reise.pos), settled = Math.abs(reise.pos - cur) < 0.12;
+    $('eraYear').textContent = settled ? (E[cur].display || reise.fmt(E[cur].year)) : reise.fmt(interpYear(E[i0].year, E[i1].year, reise.pos - i0));
+    if (E[i0].tint && E[i1].tint) { _c0.copy(FS.col(E[i0].tint)).lerp(FS.col(E[i1].tint), f); if (scene.fog) scene.fog.color.copy(_c0); if (scene.background && scene.background.isColor) scene.background.copy(_c0); }
+    if (settled && eraShown !== cur) { eraShown = cur; $('eraTitle').textContent = E[cur].title || ''; $('eraText').textContent = E[cur].text || ''; if (E[cur].enter) E[cur].enter(); }
+    $('eraTitle').style.opacity = settled ? 1 : 0; $('eraText').style.opacity = settled ? 0.8 : 0;
+    $('eraBadge').classList.toggle('on', !!E[cur].prognose && settled);
+    const pct = n > 1 ? (reise.pos / (n - 1)) * 100 : 0; $('axisFill').style.width = pct + '%'; $('axisKnob').style.left = pct + '%';
+  }
+
+  /* ---------- Hauptschleife ---------- */
+  let last = performance.now(), acc = 0, frames = 0;
+  function tick(now) {
+    requestAnimationFrame(tick);
+    const raw = (now - last) / 1000; last = now;
+    const dt = Math.min(raw, 0.05); FS.time += dt;
+    updateRig(dt, FS.time); updateReise(dt, FS.time); updateFilm(FS.started ? dt : 0);
+    for (let i = 0; i < updaters.length; i++) updaters[i](dt, FS.time);
+    render();
+    if (raw < 0.1) { acc += raw; frames++; if (frames >= 90) { const avg = acc / frames; acc = 0; frames = 0; if (avg > 1 / 38 && pr > 0.6) { pr = Math.max(0.6, pr * 0.8); resize(); } } }
+  }
+  FS.onStart(() => { if (film.shots.length) film.play(); });
+  resize();
+  requestAnimationFrame((t) => { last = t; tick(t); });
+  return FS;
+})();
+
+</script>
+<script>
+(function () {   // eigener Namensraum: Namen wie top, name oder status stoßen so nicht mit dem Browser zusammen
+'use strict';
+/* ==========================================================================
+   SZENE — „Zeig 3,3 Millionen Jahre Menschheit und die nächsten 30 Jahre“
+   ========================================================================== */
+FS.setup({
+  title: '3,3 Millionen Jahre', subtitle: 'Vom ersten Steinwerkzeug bis zur KI und ein Blick nach vorn. Eine Zeitreise in neun Stationen.',
+  button: 'Reise starten', hint: 'Zeitachse antippen oder Pfeiltasten · läuft sonst von selbst',
+  seed: 5, fov: 55, background: '#1a0d06', fog: ['#1a0d06', 0.019],
+  post: { bloom: 1.15, vignette: 0.5, grain: 0.045, aberration: 0.003 }
+});
+const R = FS.rand, RS = FS.reise, A = FS.audio, PI = Math.PI;
+RS.dwell = 7; RS.travel = 3.4; RS.camOffset = [0, 3.4, 16]; RS.camLook = [0, 2.4, 0];
+
+/* ---------- Licht: ein Hauptlicht wandert mit und wechselt die Farbe ---------- */
+FS.add(new THREE.HemisphereLight(FS.col('#8a93b8'), FS.col('#1a1410'), 0.55));
+const key = new THREE.PointLight(FS.col('#ffb070'), 2.2, 70, 1.6); FS.add(key);
+const keyCols = [];
+
+/* ---------- Bausteine ---------- */
+const geo = { box: new THREE.BoxGeometry(1, 1, 1), sph: new THREE.SphereGeometry(1, 20, 14), cyl: new THREE.CylinderGeometry(1, 1, 1, 16), cone: new THREE.ConeGeometry(1, 1, 14), rock: new THREE.DodecahedronGeometry(1, 0) };
+function solid(g, shape, color, pos, scale, rot) {            // matter Körper, reagiert auf Licht
+  const m = new THREE.Mesh(geo[shape], new THREE.MeshLambertMaterial({ color: FS.col(color), flatShading: shape === 'rock' }));
+  m.position.set(pos[0], pos[1], pos[2]); if (typeof scale === 'number') m.scale.setScalar(scale); else m.scale.set(scale[0], scale[1], scale[2]); if (rot) m.rotation.set(rot[0], rot[1], rot[2]); g.add(m); return m;
+}
+function lit(g, shape, color, k, pos, scale) {                 // selbstleuchtender Körper
+  const m = new THREE.Mesh(geo[shape], new THREE.MeshBasicMaterial({ color: FS.col(color, k) }));
+  m.position.set(pos[0], pos[1], pos[2]); if (typeof scale === 'number') m.scale.setScalar(scale); else m.scale.set(scale[0], scale[1], scale[2]); g.add(m); return m;
+}
+function island(g, color, r = 13) { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 2.5, 1.4, 56), new THREE.MeshLambertMaterial({ color: FS.col(color) })); m.position.y = -0.7; g.add(m); return m; }
+function person(g, x, z, h = 1.7, color = '#16110e', lean = 0) {
+  const p = new THREE.Group(); solid(p, 'cyl', color, [0, h * 0.42, 0], [h * 0.13, h * 0.84, h * 0.13]); solid(p, 'sph', color, [0, h * 0.93, 0], h * 0.12);
+  p.position.set(x, 0, z); p.rotation.z = lean; g.add(p); return p;
+}
+function stars(g, n, y0, spread, color = '#cfe0ff') { const l = []; for (let i = 0; i < n; i++) l.push({ pos: [R.range(-spread, spread), R.range(y0, y0 + 30), R.range(-40, -12)], color, size: R.range(0.3, 0.9), k: R.range(0.4, 1.4) }); const p = FS.glows(l, { fog: 0 }); g.add(p); return p; }
+
+/* ---------- Die neun Stationen ---------- */
+const ep = (o) => { keyCols.push(FS.col(o.key || '#ffffff')); return RS.epoch(o); };
+
+// 1 · Steinwerkzeuge
+ep({ year: -3300000, display: 'vor 3,3 Mio. Jahren', label: '3,3 Mio.', tint: '#1c0e06', key: '#ff9a55',
+  title: 'Die ersten Werkzeuge', text: 'In Lomekwi am Turkana-See schlagen Vormenschen Steine zu Klingen. Es sind die ältesten bekannten Werkzeuge der Welt.',
+  build(g, e) {
+    island(g, '#6b4a2a'); lit(g, 'sph', '#ff7a2a', 2.2, [-9, 4.5, -26], 4.2); g.add(FS.glows([{ pos: [-9, 4.5, -25], color: '#ff8a3a', size: 60, k: 0.35 }], { fog: 0.35 }));
+    solid(g, 'cyl', '#2a1a10', [6, 2.6, -4], [0.35, 5.2, 0.35], [0, 0, 0.12]); [[6.4, 5.6, -4, 4.2], [4.6, 5.1, -3.4, 2.6], [8, 5.2, -4.6, 2.8]].forEach((c) => solid(g, 'sph', '#28351a', [c[0], c[1], c[2]], [c[3], 0.7, c[3] * 0.8]));
+    person(g, -1.2, 1, 1.35, '#1a120c', 0.25); person(g, 2.6, -1.5, 1.25, '#1a120c', -0.1);
+    solid(g, 'rock', '#7d7468', [0.2, 0.35, 2.2], [0.75, 0.4, 0.6]); e.hammer = solid(g, 'rock', '#9a9084', [0.2, 1.6, 2.2], 0.32);
+    for (let i = 0; i < 9; i++) solid(g, 'rock', '#6a6258', [R.range(-7, 7), 0.12, R.range(-5, 6)], R.range(0.12, 0.4));
+    e.sparks = FS.glows(Array.from({ length: 14 }, () => ({ pos: [0.2, 0.7, 2.2], color: '#ffd27a', size: 0.5, k: 2 }))); g.add(e.sparks); e.sv = Array.from({ length: 14 }, () => [0, 0, 0, 9]);
+  },
+  update(dt, t, near) {
+    const e = this, c = (t * 0.9) % 1, y = 0.75 + Math.abs(Math.cos(c * PI)) * 1.1; e.hammer.position.y = y;
+    const sp = e.sparks.geometry.attributes.position;
+    if (c < 0.52 && c > 0.47 && e.sv[0][3] > 0.4) { e.sv.forEach((v, i) => { v[0] = R.range(-2.5, 2.5); v[1] = R.range(1.5, 5); v[2] = R.range(-2.5, 2.5); v[3] = 0; sp.setXYZ(i, 0.2, 0.75, 2.2); }); if (near > 0.9 && A.ctx) A.tone(96 + R.int(0, 5), { wave: 'square', dur: 0.02, gain: 0.05, cutoff: 6000, release: 0.05, reverb: 0.3 }); }
+    e.sv.forEach((v, i) => { v[3] += dt; v[1] -= 9 * dt; sp.setXYZ(i, sp.getX(i) + v[0] * dt, v[3] > 0.7 ? -5 : sp.getY(i) + v[1] * dt, sp.getZ(i) + v[2] * dt); }); sp.needsUpdate = true;
+  } });
+
+// 2 · Feuer
+ep({ year: -1000000, display: 'vor 1 Mio. Jahren', label: '1 Mio.', tint: '#0b0503', key: '#ff7a2a',
+  title: 'Das Feuer wird gezähmt', text: 'In der Wonderwerk-Höhle in Südafrika finden sich Spuren von kontrolliertem Feuer. Es bringt Wärme, Schutz und gekochtes Essen.',
+  build(g, e) {
+    island(g, '#3a2a20');
+    for (let i = 0; i < 11; i++) { const a = PI * (i / 10), r = 10.5; solid(g, 'rock', '#2a2019', [Math.cos(a) * r, 1.5 + Math.sin(a) * 6.5, -5 + R.range(-1, 1)], R.range(2.2, 3.6), [R(), R(), R()]); }
+    for (let i = 0; i < 5; i++) solid(g, 'cyl', '#2a1608', [0, 0.25, 1.5], [0.14, 2, 0.14], [PI / 2.4, (i / 5) * PI * 2, 0]);
+    [[-3, 2.6], [3.1, 2.2], [-1.6, -1.2], [2, -1.4]].forEach((p, i) => person(g, p[0], p[1], 1.4, '#120c08', i % 2 ? 0.15 : -0.15));
+    e.fl = Array.from({ length: 46 }, () => ({ p: R(), x: R.range(-0.5, 0.5), z: R.range(-0.5, 0.5), s: R.range(0.6, 1.4) }));
+    e.fire = FS.glows(e.fl.map((f) => ({ pos: [0, 0, 0], color: R.pick(['#ff5a1a', '#ffa23a', '#ffd27a']), size: 1.3 * f.s, k: 0.4 }))); g.add(e.fire);
+  },
+  update(dt, t) { const fp = this.fire.geometry.attributes.position; this.fl.forEach((f, i) => { f.p = (f.p + dt * (0.5 + f.s * 0.35)) % 1; const w = 1 - f.p; fp.setXYZ(i, f.x * w + Math.sin(t * 3 + i) * 0.12, 0.4 + f.p * 3.2 * f.s, 1.5 + f.z * w); }); fp.needsUpdate = true; } });
+
+// 3 · Homo sapiens
+ep({ year: -300000, display: 'vor 300.000 Jahren', label: '300.000', tint: '#060914', key: '#8fb0ff',
+  title: 'Homo sapiens', text: 'Die ältesten Funde unserer Art stammen aus Jebel Irhoud in Marokko. Der moderne Mensch betritt die Bühne.',
+  build(g, e) {
+    island(g, '#2a2c3a'); solid(g, 'rock', '#1c1e2a', [-7, 0.6, -5], [5, 2.4, 4]); solid(g, 'rock', '#1c1e2a', [8, 0.4, -6], [6, 2, 4]);
+    [-2.6, -1, 0.7, 2.4, 4].forEach((x, i) => { const p = person(g, x, 1 - i * 0.3, 1.7 + (i % 3) * 0.2, '#343a5a'); if (i === 2) solid(p, 'cyl', '#0c0d14', [0.35, 1.2, 0], [0.03, 2.6, 0.03], [0, 0, -0.12]); });
+    e.st = stars(g, 420, 2, 46); const band = []; for (let i = 0; i < 260; i++) { const u = R.range(-1, 1); band.push({ pos: [u * 44, 16 + u * 9 + R.range(-2.5, 2.5), -30 + R.range(-3, 3)], color: R.pick(['#bcd0ff', '#ffd9c0', '#ffffff']), size: R.range(0.4, 1.6), k: R.range(0.3, 1) }); }
+    g.add(FS.glows(band, { fog: 0.35 }));
+  } });
+
+// 4 · Ackerbau
+ep({ year: -10000, display: 'vor 12.000 Jahren', label: '12.000', tint: '#1c1407', key: '#ffd27a',
+  title: 'Der Mensch wird sesshaft', text: 'Im Fruchtbaren Halbmond beginnen Menschen, Getreide anzubauen. Aus Lagern werden Dörfer.',
+  build(g, e) {
+    island(g, '#5a4420'); lit(g, 'sph', '#ffd27a', 2.4, [10, 11, -28], 3.2); g.add(FS.glows([{ pos: [10, 11, -27], color: '#ffd27a', size: 55, k: 0.3 }], { fog: 0.35 }));
+    e.wheat = FS.inst(geo.cone, new THREE.MeshLambertMaterial(), 520, (i, d, c) => { const row = i % 13, k = Math.floor(i / 13); d.position.set(-9 + row * 0.9 + R.range(-0.1, 0.1), 0.55, 6 - k * 0.3 + R.range(-0.1, 0.1)); d.scale.set(0.07, R.range(0.9, 1.3), 0.07); d.rotation.z = R.range(-0.12, 0.12); c.copy(FS.col(R.pick(['#d9a93a', '#c8962c', '#e6bd55']))); });
+    g.add(e.wheat);
+    [[6, -2, 1.6], [9, 1, 1.3]].forEach((h) => { solid(g, 'cyl', '#7a5c38', [h[0], h[2] * 0.6, h[1]], [h[2], h[2] * 1.2, h[2]]); solid(g, 'cone', '#4a3418', [h[0], h[2] * 1.75, h[1]], [h[2] * 1.35, h[2] * 1.2, h[2] * 1.35]); });
+    person(g, 4, 3, 1.6, '#2a1c10', 0.2); person(g, 2.2, 4.2, 1.5, '#2a1c10');
+  },
+  update(dt, t) { this.wheat.rotation.z = Math.sin(t * 0.9) * 0.012; } });
+
+// 5 · Schrift
+ep({ year: -3300, display: '3300 v. Chr.', label: '3300 v. Chr.', tint: '#140d06', key: '#ffc890',
+  title: 'Die Schrift', text: 'In Uruk in Mesopotamien drücken Schreiber Zeichen in Ton. Wissen überdauert jetzt den, der es hat.',
+  build(g, e) {
+    island(g, '#6a5236'); [[9, 2.2], [7, 4], [5, 5.6], [3, 7]].forEach((s, i) => solid(g, 'box', '#7a6040', [0, i * 1.6 + 0.8, -9], [s[0] * 2, 1.6, s[0] * 1.2]));
+    const tab = new THREE.Group(); tab.position.set(0, 2.9, 3.5); tab.rotation.x = -0.28; g.add(tab); solid(tab, 'box', '#a8845a', [0, 0, 0], [5.4, 3.8, 0.4]);
+    e.marks = []; for (let r = 0; r < 6; r++) for (let c = 0; c < 11; c++) { const m = lit(tab, 'cone', '#ffcf8a', 2.4, [-2.2 + c * 0.44 + R.range(-0.05, 0.05), 1.4 - r * 0.56, 0.24], [0.07, 0.3, 0.03]); m.rotation.z = R.pick([0, PI / 2, PI / 4, -PI / 4, PI]); m.visible = false; e.marks.push(m); }
+    person(g, -4.4, 4.5, 1.6, '#2a1c10', -0.1);
+  },
+  update(dt, t, near) { const n = Math.floor(((t * 5) % (this.marks.length + 25))); this.marks.forEach((m, i) => { m.visible = i < n; }); } });
+
+// 6 · Buchdruck
+ep({ year: 1450, label: '1450', tint: '#0d0a08', key: '#ffe2b0',
+  title: 'Der Buchdruck', text: 'Gutenberg druckt in Mainz mit beweglichen Lettern. Bücher werden bezahlbar, Ideen verbreiten sich schneller als je zuvor.',
+  build(g, e) {
+    island(g, '#3a2c20'); [[-1.6, 2.4, 0], [1.6, 2.4, 0]].forEach((p) => solid(g, 'box', '#4a2f1a', [p[0], p[1], p[2]], [0.4, 4.8, 0.5])); solid(g, 'box', '#4a2f1a', [0, 4.7, 0], [3.8, 0.4, 0.6]); solid(g, 'box', '#3a2414', [0, 1, 0.3], [3, 0.3, 2.2]);
+    solid(g, 'cyl', '#2a1a10', [0, 3.6, 0], [0.16, 1.8, 0.16]); e.plate = solid(g, 'box', '#5a3a20', [0, 2.2, 0.3], [2.4, 0.25, 1.6]);
+    e.pages = []; for (let i = 0; i < 34; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2), new THREE.MeshBasicMaterial({ color: FS.col('#fff4dc', 1.15), side: THREE.DoubleSide })); g.add(m); e.pages.push({ m, p: i / 34, a: R.range(-1, 1), s: R.range(0.7, 1.3) }); }
+    g.add(FS.inst(geo.box, new THREE.MeshLambertMaterial(), 96, (i, d, c) => { d.position.set(-5.5 + (i % 12) * 0.34, 0.2 + Math.floor(i / 12) * 0.001, 4 + Math.floor(i / 12) * 0.34); d.scale.set(0.28, R.range(0.25, 0.4), 0.28); c.copy(FS.col('#8a8f98')); }));
+    person(g, 3.4, 1.2, 1.7, '#1a1410', 0.08);
+  },
+  update(dt, t) { this.plate.position.y = 1.5 + Math.abs(Math.sin(t * 1.2)) * 1.1; this.pages.forEach((q) => { q.p = (q.p + dt * 0.11 * q.s) % 1; const u = q.p; q.m.position.set(q.a * u * 9, 1.4 + u * 9 + Math.sin(u * 7 + q.a * 3) * 0.6, 0.6 + u * 3 - u * u * 14); q.m.rotation.set(u * 5 * q.s, u * 4 + q.a, Math.sin(t + q.a * 5) * 0.6); q.m.scale.setScalar(Math.min(1, u * 8) * (1 - FS.smooth((u - 0.8) / 0.2))); }); } });
+
+// 7 · Mondlandung
+ep({ year: 1969, label: '1969', tint: '#020307', key: '#ffffff',
+  title: 'Die Mondlandung', text: 'Am 20. Juli 1969 landen mit Apollo 11 die ersten Menschen auf dem Mond.',
+  build(g, e) {
+    island(g, '#8a8d92', 14); for (let i = 0; i < 9; i++) { const m = new THREE.Mesh(new THREE.TorusGeometry(R.range(0.5, 1.6), 0.12, 6, 20), new THREE.MeshLambertMaterial({ color: FS.col('#6d7076') })); m.rotation.x = PI / 2; m.scale.z = 0.3; m.position.set(R.range(-9, 9), 0.02, R.range(-6, 7)); g.add(m); }
+    const L = new THREE.Group(); L.position.set(-2.2, 0, -0.5); g.add(L); solid(L, 'cyl', '#c9a23a', [0, 1.5, 0], [1.3, 1.1, 1.3]); solid(L, 'box', '#b8bcc4', [0, 2.7, 0], [1.6, 1.3, 1.5]); solid(L, 'cone', '#8a8d92', [0, 0.7, 0], [0.7, 0.7, 0.7]);
+    for (let i = 0; i < 4; i++) { const a = i * PI / 2 + PI / 4; solid(L, 'cyl', '#b8bcc4', [Math.cos(a) * 1.5, 0.75, Math.sin(a) * 1.5], [0.05, 1.9, 0.05], [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5]); solid(L, 'cyl', '#c9a23a', [Math.cos(a) * 1.95, 0.05, Math.sin(a) * 1.95], [0.3, 0.08, 0.3]); }
+    solid(g, 'cyl', '#d8d8d8', [2.6, 1.3, 1.5], [0.03, 2.6, 0.03]); const f = lit(g, 'box', '#ffffff', 0.9, [3.25, 2.25, 1.5], [1.3, 0.7, 0.02]); lit(g, 'box', '#2a4a9a', 0.9, [2.88, 2.42, 1.52], [0.5, 0.34, 0.02]);
+    const as = person(g, 1, 2.6, 1.8, '#e8e8ee'); solid(as, 'box', '#d0d0d8', [0, 1.15, -0.3], [0.5, 0.7, 0.3]);
+    e.earth = lit(g, 'sph', '#3a7bff', 1.3, [9, 13, -30], 2.6); g.add(FS.glows([{ pos: [9, 13, -29], color: '#5a9bff', size: 34, k: 0.35 }], { fog: 0.35 })); lit(g, 'sph', '#e8f4ff', 1.5, [8.1, 13.9, -28.2], [1.5, 0.5, 1]);
+    stars(g, 500, 0, 50, '#ffffff');
+  } });
+
+// 8 · KI
+ep({ year: 2022, label: '2022', tint: '#050816', key: '#6aa8ff',
+  title: 'KI für alle', text: 'Sprachmodelle werden zum Alltagswerkzeug. Hunderte Millionen Menschen probieren sie in kurzer Zeit aus.',
+  build(g, e) {
+    island(g, '#141a2e'); const nodes = [], seg = [], layers = [5, 8, 8, 5];
+    layers.forEach((n, l) => { for (let i = 0; i < n; i++) nodes.push({ l, pos: [-6 + l * 4, 1 + (i - (n - 1) / 2) * 1.05 + 3.2, R.range(-0.6, 0.6)] }); });
+    nodes.forEach((a) => nodes.forEach((b) => { if (b.l === a.l + 1 && R.chance(0.55)) seg.push(a.pos[0], a.pos[1], a.pos[2], b.pos[0], b.pos[1], b.pos[2]); }));
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3)); e.lines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: FS.col('#3a6aff', 0.9), transparent: true, opacity: 0.5 })); g.add(e.lines);
+    e.nodes = nodes; e.ng = FS.glows(nodes.map((n) => ({ pos: n.pos, color: '#7ab8ff', size: 1.5, k: 1 }))); g.add(e.ng);
+    e.core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 1), new THREE.MeshBasicMaterial({ color: FS.col('#9ad0ff', 2.2), wireframe: true })); e.core.position.set(8.6, 4.2, 0); g.add(e.core); g.add(FS.glows([{ pos: [8.6, 4.2, 0], color: '#6aa8ff', size: 14, k: 0.5 }]));
+    for (let i = 0; i < 7; i++) { const p = person(g, -7 + i * 2.4 + R.range(-0.4, 0.4), 5 + R.range(-1, 1), 1.7, '#0a0d18'); lit(p, 'box', '#bfe0ff', 1.8, [0, 1.15, 0.22], [0.16, 0.28, 0.02]); }
+  },
+  update(dt, t) { const c = this.ng.geometry.attributes.color; this.nodes.forEach((n, i) => { const v = 0.35 + 1.5 * Math.pow(Math.max(0, Math.sin(t * 2.4 - n.l * 0.9 + i * 0.4)), 4); c.setXYZ(i, 0.2 * v, 0.5 * v, 1 * v); }); c.needsUpdate = true; this.core.rotation.set(t * 0.4, t * 0.6, 0); } });
+
+// 9 · Prognose
+ep({ year: 2056, label: '2056', prognose: true, tint: '#0b0618', key: '#c08aff',
+  title: 'Forschung im Zeitraffer', text: 'Ein Szenario, keine Tatsache: KI-Systeme könnten Jahrzehnte an Forschung in wenige Jahre pressen. Ob und wie schnell das kommt, ist offen.',
+  build(g, e) {
+    island(g, '#1a1230'); e.helix = new THREE.Group(); e.helix.position.set(0, 0.5, 0); g.add(e.helix); const hl = [];
+    for (let i = 0; i < 90; i++) { const a = i * 0.32, y = i * 0.11; hl.push({ pos: [Math.cos(a) * 1.5, y, Math.sin(a) * 1.5], color: '#ff7ad9', size: 0.9, k: 1.2 }, { pos: [Math.cos(a + PI) * 1.5, y, Math.sin(a + PI) * 1.5], color: '#5fd8ff', size: 0.9, k: 1.2 }); if (i % 3 === 0) for (let k = 1; k < 5; k++) hl.push({ pos: [Math.cos(a) * 1.5 * (1 - k * 0.4), y, Math.sin(a) * 1.5 * (1 - k * 0.4)], color: '#ffffff', size: 0.4, k: 0.5 }); }
+    e.helix.add(FS.glows(hl));
+    e.rings = [3.2, 4.6, 6.2].map((r, i) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.03, 6, 90), new THREE.MeshBasicMaterial({ color: FS.col(['#c08aff', '#5fd8ff', '#ff7ad9'][i], 2.4) })); m.position.y = 5; g.add(m); return m; });
+    for (let i = 0; i < 16; i++) { const a = PI + (i / 15) * PI, r = R.range(8, 12), h = R.range(2, 9); solid(g, 'box', '#1a1436', [Math.cos(a) * r, h / 2, Math.sin(a) * r - 2], [0.9, h, 0.9]); lit(g, 'box', R.pick(['#c08aff', '#5fd8ff']), 2.6, [Math.cos(a) * r, h + 0.05, Math.sin(a) * r - 2], [0.92, 0.08, 0.92]); }
+    stars(g, 300, 4, 46, '#d8c8ff');
+  },
+  update(dt, t) { this.helix.rotation.y = t * 0.5; this.rings.forEach((m, i) => m.rotation.set(t * (0.3 + i * 0.12), t * 0.2 * (i % 2 ? -1 : 1), i)); } });
+
+/* ---------- Sternenstrom zwischen den Stationen ---------- */
+const total = RS.eps.length * RS.spacing;
+FS.add(FS.glows(Array.from({ length: 900 }, () => ({ pos: [R.range(-50, 50) || 1, R.range(-6, 34), 30 - R() * (total + 40)], color: R.pick(['#ffffff', '#ffd9b0', '#b0c8ff']), size: R.range(0.25, 0.7), k: R.range(0.4, 1.2) })), { fog: 0.4 }));
+
+/* ---------- Hauptlicht folgt der Reise ---------- */
+const kc = new THREE.Color();
+FS.onUpdate(() => { const p = RS.pos, i0 = Math.floor(p), i1 = Math.min(i0 + 1, keyCols.length - 1); kc.copy(keyCols[i0]).lerp(keyCols[i1], p - i0); key.color.copy(kc); key.position.set(3, 6.5, -p * RS.spacing + 7); });
+
+/* ---------- Ton: ein Akkord pro Epoche, vom Dunklen ins Helle ---------- */
+FS.onStart(() => {
+  if (!A.ctx) return;
+  const chords = [[38, 45, 50, 53], [38, 45, 50, 53], [41, 48, 53, 57], [43, 50, 55, 59], [45, 52, 57, 60], [48, 55, 60, 64], [50, 57, 62, 66], [53, 60, 65, 69], [55, 62, 67, 71]];
+  const pad = A.pad(chords[0], { gain: 0.05, cutoff: 700, reverb: 0.8 }); A.noise({ color: 'brown', type: 'lowpass', freq: 260, gain: 0.1 });
+  let lastEp = -1;
+  A.loop({ bpm: 66, div: 2, fn(i, time) {
+    const e = Math.round(RS.pos), ch = chords[e], s = i % 8;
+    if (e !== lastEp) { lastEp = e; pad.to(ch, 2.5); pad.filter.frequency.setTargetAtTime(600 + e * 170, time, 1.5); A.whoosh({ time, from: 200, to: 1600 + e * 200, dur: 2.6, gain: 0.1, reverb: 0.8 }); A.tone(ch[3] + 12, { time: time + 0.5, wave: 'sine', dur: 1.2, gain: 0.12, reverb: 0.9, release: 1.8 }); }
+    if (s === 0) A.tone(ch[0] - 12, { time, wave: 'sine', dur: 3, gain: 0.2, release: 0.6 });
+    if (e >= 3 && s % 2 === 0) A.tone(ch[(i / 2) % 4] + 12, { time, wave: 'triangle', dur: 0.35, gain: 0.03 + e * 0.006, reverb: 0.8, release: 0.9 });
+    if (e >= 7) A.tone(ch[(i * 3) % 4] + 24, { time, wave: 'sine', dur: 0.15, gain: 0.035, reverb: 0.8, release: 0.5 });
+  } });
+});
+
+})();
+</script>
+</body>
+</html>

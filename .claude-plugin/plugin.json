@@ -1,0 +1,13 @@
+{
+  "name": "fable-studio",
+  "description": "Aus einem Satz wird ein fertiges 3D-Erlebnis als eine HTML-Datei, mit Licht, Kamerafahrt, Bewegung und eigenem Ton. Drei Modi: Welt (interaktive 3D-Szene), Film (animierter Kurzfilm) und Zeitreise (animierte Zeitleiste). Mit Aufnahme-Modus im Hochformat für Reels.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Christopher Thanisch",
+    "url": "https://thanisch.co"
+  },
+  "homepage": "https://thanisch.co/wissen/guides/fable-studio-skill",
+  "repository": "https://github.com/Ultra-Smashed/fable-studio",
+  "license": "MIT",
+  "keywords": ["3d", "threejs", "animation", "kurzfilm", "zeitleiste", "visualisierung", "reels", "deutsch", "claude-skills"]
+}

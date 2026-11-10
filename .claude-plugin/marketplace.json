@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "fable-studio",
+  "description": "Aus einem Satz wird ein fertiges 3D-Erlebnis: Welt, Film oder Zeitreise.",
+  "owner": {
+    "name": "Christopher Thanisch",
+    "url": "https://thanisch.co"
+  },
+  "plugins": [
+    {
+      "name": "fable-studio",
+      "description": "Baut aus einem einzigen Satz eine interaktive 3D-Szene, einen animierten Kurzfilm oder eine Zeitreise als eine HTML-Datei, mit Licht, Kamerafahrt, Bewegung, eigenem Ton und Aufnahme-Modus im Hochformat.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
